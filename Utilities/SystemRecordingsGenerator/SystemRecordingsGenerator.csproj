@@ -16,4 +16,16 @@
       <PackageReference Include="SIPSorcery" Version="10.0.17" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="System Recordings\beep.wav">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="System Recordings\Nothing.wav">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="System Recordings\pause.wav">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>
