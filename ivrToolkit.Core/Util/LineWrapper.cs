@@ -6,6 +6,7 @@ using ivrToolkit.Core.Enums;
 using ivrToolkit.Core.Exceptions;
 using ivrToolkit.Core.Extensions;
 using ivrToolkit.Core.Interfaces;
+using ivrToolkit.Core.Util.Speech;
 using Microsoft.Extensions.Logging;
 
 // ReSharper disable StringLiteralTypo
@@ -34,6 +35,7 @@ internal partial class LineWrapper : IIvrLine, IIvrLineManagement
     private bool _disposed;
     private readonly VoiceProperties _voiceProperties;
     private readonly string _root;
+    private readonly ILanguageSpeaker _speaker;
 
 
     internal LineWrapper(ILoggerFactory loggerFactory, VoiceProperties voiceProperties, int lineNumber, 
@@ -49,6 +51,7 @@ internal partial class LineWrapper : IIvrLine, IIvrLineManagement
         
         _voiceProperties = voiceProperties.ThrowIfNull(nameof(voiceProperties));
         _root = Path.Combine("System Recordings", _voiceProperties.SystemRecordingSubfolder);
+        _speaker = LanguageSpeakerFactory.Create(_voiceProperties.SystemRecordingSubfolder);
 
         _logger = loggerFactory.CreateLogger<LineWrapper>();
         _logger.LogDebug("ctr(ILoggerFactory, VoiceProperties, {lineNumber})", lineNumber);

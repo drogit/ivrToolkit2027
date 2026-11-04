@@ -87,8 +87,17 @@ public class VoiceProperties : Properties, IDisposable
 
     /// <summary>
     /// The sub-folder location under "System Recordings" that contains the system recordings.
-    /// Current options are "Original" or "en-US-JennyNeural"
+    /// Current options are "Original", "en-US-JennyNeural" or "fr-CA-SylvieNeural".
     /// </summary>
+    /// <remarks>
+    /// The sub-folder name also decides the language used to speak dates, times, numbers and money:
+    /// <list type="bullet">
+    /// <item><description><c>Original</c> (case-insensitive) - legacy recordings, spoken in English.</description></item>
+    /// <item><description>Starts with <c>fr-</c> (case-insensitive) - French Canadian.</description></item>
+    /// <item><description>Anything else - English.</description></item>
+    /// </list>
+    /// Name new sub-folders after the Azure TTS voice that generated them, for example <c>en-US-JennyNeural</c> or <c>fr-CA-SylvieNeural</c>.
+    /// </remarks>
     public string SystemRecordingSubfolder
     {
         get => GetProperty(SYSTEM_RECORDING_SUBFOLDER_KEY, SYSTEM_RECORDING_SUBFOLDER_DEFAULT);

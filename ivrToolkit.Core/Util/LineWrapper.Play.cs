@@ -6,23 +6,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using ivrToolkit.Core.Extensions;
 using ivrToolkit.Core.Interfaces;
+using ivrToolkit.Core.Util.Speech;
 using Microsoft.Extensions.Logging;
 
 namespace ivrToolkit.Core.Util;
 
 internal partial class LineWrapper
 {
-    private readonly string[] _months = new[] {
-        "January","February","March","April","May","June","July","August","September","October",
-        "November","December"
-    };
-
-    private bool Is24Hour(string mask) {
-        _logger.LogDebug("{method}({mask})", nameof(Is24Hour), mask);
-        var parts = mask.Split(new[] { ' ',':', '-' });
-        return parts.All(part => part != "a/p");
-    }
-
     /// <summary>
     /// Plays a phone number as long as it is 7, 10 or 11 characters long.
     /// </summary>
@@ -65,6 +55,11 @@ internal partial class LineWrapper
     /// <b>"h" or "hh"</b>     - Speaks the hours. If your mask contains `a/p`, it is 12-hour time; otherwise, it is 24-hour time.<br/>
     /// <b>"n" or "nn"</b>     - Speaks the minutes.<br/>
     /// <b>"a/p"</b>           - Speaks either "am" or "pm".<br/>
+    /// <para>
+    /// The language comes from <see cref="VoiceProperties.SystemRecordingSubfolder"/> (see <see cref="Speech.LanguageSpeakerFactory"/>).
+    /// For <c>fr-</c> subfolders the parts are spoken in French order and time is always 24-hour (<c>a/p</c> is ignored).
+    /// <c>Original</c> is the legacy English folder.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -74,187 +69,25 @@ internal partial class LineWrapper
     public void PlayDate(DateTime dateTime, string mask)
     {
         _logger.LogDebug("{method}({dateTime}, {mask})", nameof(PlayDate), dateTime, mask);
-        PlayDateInternalAsync(dateTime, mask,
-            file => { PlayF(file); return Task.CompletedTask; },
-            year => { SpeakYearThousands(year); return Task.CompletedTask; },
-            lng => { PlayInteger(lng); return Task.CompletedTask; }
-        ).GetAwaiter().GetResult();
+        _speaker.SpeakDateAsync(dateTime, mask, SyncContext()).GetAwaiter().GetResult();
     }
-        
+
     public async Task PlayDateAsync(DateTime dateTime, string mask, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({dateTime}, {mask})", nameof(PlayDateAsync), dateTime, mask);
-        await PlayDateInternalAsync(dateTime, mask,
-            async file => await PlayFAsync(file, cancellationToken),
-            async year => await SpeakYearThousandsAsync(year, cancellationToken),
-            async l => await PlayIntegerAsync(l, cancellationToken));
+        await _speaker.SpeakDateAsync(dateTime, mask, AsyncContext(cancellationToken));
     }
 
-    private async Task PlayDateInternalAsync(DateTime dateTime, string mask,
-        Func<string, Task> playF,
-        Func<string, Task> speakYearThousands,
-        Func<long, Task> playInteger)
+    private SpeechContext SyncContext()
     {
-        _logger.LogDebug("{method}({dateTime}, {mask})", nameof(PlayDateInternalAsync), dateTime, mask);
-        mask = mask.ToLower();
-        var parts = mask.Split(' ', ':', '-');
-        foreach (var part in parts)
-        {
-            switch (part)
-            {
-                case "m" or "mm" or "mmm":
-                {
-                    var m = dateTime.Month;
-                    if (m is > 0 and < 13) {
-                        var month = _months[m-1];
-                        await playF(month);
-                    }
-
-                    break;
-                }
-                case "d" or "dd":
-                    await playF("ord" + dateTime.Day);
-                    break;
-                case "ddd" or "dddd":
-                {
-                    var dow = dateTime.DayOfWeek;
-                    
-                    var day = Enum.Format(typeof(DayOfWeek),dow,"G");
-                    await playF(day);
-                    break;
-                }
-                case "yyy" or "yyyy":
-                {
-                    var year = dateTime.Year.ToString(CultureInfo.InvariantCulture);
-
-                    // speak years 2010 to 2099 with the word thousand
-                    await speakYearThousands(year);
-
-                    // speak years 2010 to 2099 without the word thousand in it.
-                    //speakYearBrokenUp(year);
-                    break;
-                }
-                case "h" or "hh":
-                {
-                    var h = dateTime.Hour;
-                    if (Is24Hour(mask))
-                    {
-                        if (h < 10)
-                        {
-                            await playF("o");
-                        }
-                        if (h > 0)
-                        {
-                            await playInteger(h);
-                        }
-                        var m = dateTime.Minute;
-                        if (m == 0 || h == 0)
-                        {
-                            await playF("00 hours");
-                        }
-                    }
-                    else
-                    {
-                        switch (h)
-                        {
-                            case 0:
-                                await playF("12");
-                                break;
-                            case > 12:
-                                await playInteger(h - 12);
-                                break;
-                            default:
-                                await playInteger(h);
-                                break;
-                        }
-                    }
-
-                    break;
-                }
-                case "n" or "nn":
-                {
-                    var m = dateTime.Minute;
-                    switch (m)
-                    {
-                        case > 0 and < 10:
-                            await playF("o");
-                            await playF(m.ToString(CultureInfo.InvariantCulture));
-                            break;
-                        case >= 10:
-                            await playInteger(m);
-                            break;
-                    }
-
-                    break;
-                }
-                case "a/p":
-                {
-                    var h = dateTime.Hour;
-                    await playF( h < 12 ? "am" : "pm");
-                    break;
-                }
-            }
-        }
+        return new SpeechContext(file => { PlayF(file); return Task.CompletedTask; });
     }
 
-    // speak years 2010 to 2099 with the word thousand
-    ///
-    private void SpeakYearThousands(string year)
+    private SpeechContext AsyncContext(CancellationToken cancellationToken)
     {
-        _logger.LogDebug("{method}({year})", nameof(SpeakYearThousands), year);
-        SpeakYearThousandsInternalAsync(year,
-            file => { PlayF(file); return Task.CompletedTask; },
-            lng => { PlayInteger(lng); return Task.CompletedTask; }).GetAwaiter().GetResult();
+        return new SpeechContext(async file => await PlayFAsync(file, cancellationToken));
     }
 
-    private async Task SpeakYearThousandsAsync(string year, CancellationToken cancellationToken)
-    {
-        _logger.LogDebug("{method}({year})", nameof(SpeakYearThousandsAsync), year);
-        await SpeakYearThousandsInternalAsync(year,
-            async file => await PlayFAsync(file, cancellationToken),
-            async lng => await PlayIntegerAsync(lng, cancellationToken));
-    }
-
-    private async Task SpeakYearThousandsInternalAsync(string year,
-        Func<string, Task> playF,
-        Func<long, Task> playInteger)
-    {
-        _logger.LogDebug("{method}({year})", nameof(SpeakYearThousandsInternalAsync), year);
-        var y1 = year.Substring(0, 2);
-        var y2 = year.Substring(2, 2);
-        var y1Int = int.Parse(y1);
-        var y2Int = int.Parse(y2);
-
-        if (y1.EndsWith("0"))
-        {
-            await playF( y1.Substring(0, 1));
-            await playF("Thousand");
-            if (y2Int > 0)
-            {
-                await playInteger(y2Int);
-            }
-        }
-        else
-        {
-            await playInteger(y1Int);
-            if (y2Int == 0)
-            {
-                await playF("o");
-                await playF("o");
-            }
-            else if (y2Int < 10)
-            {
-                await playF("o");
-                await playF(y2Int.ToString(CultureInfo.InvariantCulture));
-            }
-            else
-            {
-                await playInteger(y2Int);
-            }
-        }
-    }
-
-    // speak years 2010 to 2099 without the word thousand in it.
     /// <summary>
     /// Speaks a number in money format. For example 5.23 would be spoken as 'five dollars and twenty three cents'
     /// </summary>
@@ -262,47 +95,13 @@ internal partial class LineWrapper
     public void PlayMoney(double number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayMoney), number);
-        PlayMoneyInternalAsync(number,
-            i =>
-            {
-                PlayInteger(i);
-                return Task.CompletedTask;
-            },
-            file =>
-            {
-                PlayF(file);
-                return Task.CompletedTask;
-            }).GetAwaiter().GetResult();
+        _speaker.SpeakMoneyAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
-    
+
     public async Task PlayMoneyAsync(double number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayMoneyAsync), number);
-        await PlayMoneyInternalAsync(number,
-            async i => await PlayIntegerAsync(i, cancellationToken),
-            async file => await PlayFAsync(file, cancellationToken));
-    }
-
-    private async Task PlayMoneyInternalAsync(double number,
-        Func<long, Task> playInteger,
-        Func<string, Task> playF)
-    {
-        _logger.LogDebug("{method}({number})", nameof(PlayMoneyInternalAsync), number);
-        var numberAsString = number.ToString("F"); // two decimal places
-        var index = numberAsString.IndexOf(".", StringComparison.Ordinal);
-        var wholePart = numberAsString.Substring(0, index);
-        var fractionPart = numberAsString.Substring(index + 1);
-            
-        var whole = long.Parse(wholePart);
-        await playInteger(whole);
-        await playF(whole == 1 ? "dollar" : "dollars");
-        if (fractionPart != "")
-        {
-            await playF("and");
-            var cents = long.Parse(fractionPart);
-            await playInteger(cents);
-            await playF( cents == 1 ? "cent" : "cents");
-        }
+        await _speaker.SpeakMoneyAsync(number, AsyncContext(cancellationToken));
     }
 
     /// <summary>
@@ -360,48 +159,13 @@ internal partial class LineWrapper
     public void PlayNumber(double number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayNumber), number);
-        PlayNumberInternalAsync(number,
-            n => { PlayInteger(n); return Task.CompletedTask; },
-            file => { PlayF(file); return Task.CompletedTask; }
-        ).GetAwaiter().GetResult();
+        _speaker.SpeakNumberAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
 
     public async Task PlayNumberAsync(double number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayNumberAsync), number);
-        await PlayNumberInternalAsync(number,
-            async n => await PlayIntegerAsync(n, cancellationToken),
-            async file => await PlayFAsync(file, cancellationToken));
-    }
-
-    private async Task PlayNumberInternalAsync(double number,
-        Func<long, Task> playInteger,
-        Func<string, Task> playF)
-    {
-        _logger.LogDebug("{method}({number})", nameof(PlayNumberInternalAsync), number);
-        var n =number.ToString("G");
-        var index = n.IndexOf(".", StringComparison.Ordinal);
-        string whole;
-        var fraction = "";
-        if (index == -1)
-        {
-            whole = n;
-        }
-        else
-        {
-            whole = n.Substring(0, index);
-            fraction = n.Substring(index + 1);
-        }
-        await playInteger(long.Parse(whole));
-        if (fraction != "")
-        {
-            await playF("point");
-            var chars = fraction.ToCharArray();
-            foreach (var c in chars)
-            {
-                await playF(c.ToString(CultureInfo.InvariantCulture));
-            }
-        }
+        await _speaker.SpeakNumberAsync(number, AsyncContext(cancellationToken));
     }
 
     /// <summary>
@@ -411,73 +175,13 @@ internal partial class LineWrapper
     public void PlayInteger(long number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayInteger), number);
-        PlayIntegerInternalAsync(number,
-            filename =>
-            {
-                PlayF(filename);
-                return Task.CompletedTask;
-            },
-            n =>
-            {
-                SpeakUpTo999(n);
-                return Task.CompletedTask;
-            }).GetAwaiter().GetResult();
+        _speaker.SpeakIntegerAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
 
     public async Task PlayIntegerAsync(long number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayIntegerAsync), number);
-        await PlayIntegerInternalAsync(number,
-            async filename => await PlayFAsync(filename, cancellationToken),
-            async n => await SpeakUpTo999Async(n, cancellationToken));
-    }
-
-    private async Task PlayIntegerInternalAsync(long number,
-        Func<string, Task> playF,
-        Func<long, Task> speakUpTo999)
-    {
-        _logger.LogDebug("{method}({number})", nameof(PlayIntegerInternalAsync), number);
-        if (number < 0)
-        {
-            await playF("negative");
-            number = number * -1;
-        }
-        if (number == 0)
-        {
-            await playF("0");
-            return;
-        }
-        const long billion = 1000000000;
-        const long million = 1000000;
-        const long thousand = 1000;
-
-        var billions = number / billion;
-        var rest = number % billion;
-        if (billions > 0)
-        {
-            await speakUpTo999(billions);
-            await playF("Billion");
-        }
-
-        var millions = rest / million;
-        rest = rest % million;
-        if (millions > 0)
-        {
-            await speakUpTo999(millions);
-            await playF("Million");
-        }
-
-        var thousands = rest / thousand;
-        rest = rest % thousand;
-        if (thousands > 0)
-        {
-            await speakUpTo999(thousands);
-            await playF("Thousand");
-        }
-        if (rest > 0)
-        {
-            await speakUpTo999(rest);
-        }
+        await _speaker.SpeakIntegerAsync(number, AsyncContext(cancellationToken));
     }
         
     /// <summary>
@@ -487,13 +191,13 @@ internal partial class LineWrapper
     public void PlayOrdinal(int number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayOrdinal), number);
-        PlayF("ord" + number);
+        _speaker.SpeakOrdinalAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
-        
+
     public async Task PlayOrdinalAsync(int number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayOrdinalAsync), number);
-        await PlayFAsync("ord" + number, cancellationToken);
+        await _speaker.SpeakOrdinalAsync(number, AsyncContext(cancellationToken));
     }
 
     /// <summary>
@@ -597,48 +301,6 @@ internal partial class LineWrapper
                 default:
                     throw new FormatException($"Invalid command: {command}");
             }
-        }
-    }
-
-    private void SpeakUpTo999(long number)
-    {
-        _logger.LogDebug("{method}({number})", nameof(SpeakUpTo999), number);
-        SpeakUpTo999InternalAsync(number,
-            n =>
-            {
-                PlayF(n);
-                return Task.CompletedTask;
-            }).GetAwaiter().GetResult();
-    }
-    private async Task SpeakUpTo999Async(long number, CancellationToken cancellationToken)
-    {
-        _logger.LogDebug("{method}({number})", nameof(SpeakUpTo999Async), number);
-        await SpeakUpTo999InternalAsync(number,
-            async n => await PlayFAsync(n, cancellationToken));
-    }
-        
-    private async Task SpeakUpTo999InternalAsync(long number,
-        Func<string, Task> playF)
-    {
-        _logger.LogDebug("{method}({number})", nameof(SpeakUpTo999InternalAsync), number);
-        const long hundred = 100;
-        var hundreds = number / hundred;
-        var rest = number % 100;
-        if (hundreds > 0)
-        {
-            await playF(hundreds + "00");
-        }
-        if (rest == 0) return;
-        if (rest < 20)
-        {
-            await playF(rest.ToString(CultureInfo.InvariantCulture));
-            return;
-        }
-        var n = rest.ToString(CultureInfo.InvariantCulture);
-        await playF(n.Substring(0, 1) + "0");
-        if (n.Substring(1, 1) != "0")
-        {
-            await playF(n.Substring(1, 1));
         }
     }
 

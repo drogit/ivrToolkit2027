@@ -2,7 +2,6 @@ using ivrToolkit.Core.Interfaces;
 using ivrToolkit.Core.TTS;
 using ivrToolkit.Plugin.SipSorcery;
 using Microsoft.Extensions.Logging;
-using static Google.Rpc.Context.AttributeContext.Types;
 
 namespace SystemRecordingsGenerator;
 
@@ -67,7 +66,7 @@ public class FrenchCanadian
         Convert("70", "70.wav");
         Convert("700", "700.wav");
         Convert("8", "8.wav");
-        Convert("80", "80.wav");
+        Convert("quatre-vingts", "80.wav");
         Convert("800", "800.wav");
         Convert("9", "9.wav");
         Convert("90", "90.wav");
@@ -165,6 +164,25 @@ public class FrenchCanadian
         Convert("x", "x.wav");
         Convert("y", "y.wav");
         Convert("z", "z.wav");
+
+        // French numbers 21 to 99 can't be built from smaller recordings, so each one gets its own file
+        for (var i = 21; i < 100; i++)
+        {
+            if (i % 10 == 0) continue;
+            Convert(i.ToString(), $"{i}.wav");
+        }
+        Convert("quatre-vingt", "80 compound.wav");
+        Convert("cent", "hundred.wav");
+        Convert("millions", "millions.wav");
+        Convert("milliards", "billions.wav");
+
+        // dates and times
+        Convert("le", "le.wav");
+        Convert("heure", "heure.wav");
+        Convert("heures", "heures.wav");
+        Convert("une", "une.wav");
+        Convert("vingt et une", "21f.wav");
+        Convert("minuit", "minuit.wav");
     }
 
     private void Convert(string text, string output)

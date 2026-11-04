@@ -29,8 +29,9 @@ public class English
         var voicePath = Path.Combine("System Recordings", _sipVoiceProperties.TtsAzureVoice);
         Directory.CreateDirectory(voicePath);
 
-        File.Copy(Path.Combine("System Recordings", "beep.wav"), Path.Combine(_sipVoiceProperties.TtsAzureVoice, "beep.wav"), true);
-        File.Copy(Path.Combine("System Recordings", "pause.wav"), Path.Combine(_sipVoiceProperties.TtsAzureVoice, "pause.wav"), true);
+        File.Copy(Path.Combine("System Recordings", "beep.wav"), Path.Combine(voicePath, "beep.wav"), true);
+        File.Copy(Path.Combine("System Recordings", "pause.wav"), Path.Combine(voicePath, "pause.wav"), true);
+        File.Copy(Path.Combine("System Recordings", "nothing.wav"), Path.Combine(voicePath, "nothing.wav"), true);
 
         Convert("0", "0.wav");
         Convert("hundred hours", "00 hours.wav");

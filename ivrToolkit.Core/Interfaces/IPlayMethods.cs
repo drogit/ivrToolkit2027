@@ -37,6 +37,12 @@ public interface IPlayMethods
     /// <b>"h" or "hh"</b>     - Speaks the hours. If your mask contains `a/p`, it is 12-hour time; otherwise, it is 24-hour time.<br/>
     /// <b>"n" or "nn"</b>     - Speaks the minutes.<br/>
     /// <b>"a/p"</b>           - Speaks either "am" or "pm".<br/>
+    /// <para>
+    /// The language is chosen from <c>VoiceProperties.SystemRecordingSubfolder</c>. When the subfolder starts with <c>fr-</c>
+    /// (French Canadian), the mask only decides which parts are spoken. The parts are always spoken in French order
+    /// ([day of week] le [day] [month] [year] [hour] heures [minutes]) and time is always 24-hour, so <c>a/p</c> is ignored.
+    /// <c>Original</c> (legacy recordings) and all other subfolders use English.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -60,6 +66,12 @@ public interface IPlayMethods
     /// <b>"h" or "hh"</b>     - Speaks the hours. If your mask contains `a/p`, it is 12-hour time; otherwise, it is 24-hour time.<br/>
     /// <b>"n" or "nn"</b>     - Speaks the minutes.<br/>
     /// <b>"a/p"</b>           - Speaks either "am" or "pm".<br/>
+    /// <para>
+    /// The language is chosen from <c>VoiceProperties.SystemRecordingSubfolder</c>. When the subfolder starts with <c>fr-</c>
+    /// (French Canadian), the mask only decides which parts are spoken. The parts are always spoken in French order
+    /// ([day of week] le [day] [month] [year] [hour] heures [minutes]) and time is always 24-hour, so <c>a/p</c> is ignored.
+    /// <c>Original</c> (legacy recordings) and all other subfolders use English.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -72,6 +84,7 @@ public interface IPlayMethods
     /// Speaks a double in money format. For example 5.23 would be spoken as 'five dollars and twenty three cents'
     /// </summary>
     /// <param name="number">The number you want to speak</param>
+    /// <remarks>Spoken in French ("dollars et cents") when <c>VoiceProperties.SystemRecordingSubfolder</c> starts with <c>fr-</c>; otherwise English.</remarks>
     void PlayMoney(double number);
 
     /// <summary>
@@ -79,6 +92,7 @@ public interface IPlayMethods
     /// </summary>
     /// <param name="number">The number you want to speak</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <remarks>Spoken in French ("dollars et cents") when <c>VoiceProperties.SystemRecordingSubfolder</c> starts with <c>fr-</c>; otherwise English.</remarks>
     Task PlayMoneyAsync(double number, CancellationToken cancellationToken);
 
     /// <summary>
@@ -98,6 +112,7 @@ public interface IPlayMethods
     /// Speaks out a double. For example 5.23 would be spoken as 'five point two three'
     /// </summary>
     /// <param name="number">The number to speak out</param>
+    /// <remarks>Spoken in French ("virgule" for the decimal point) when <c>VoiceProperties.SystemRecordingSubfolder</c> starts with <c>fr-</c>; otherwise English.</remarks>
     void PlayNumber(double number);
 
     /// <summary>
@@ -105,12 +120,14 @@ public interface IPlayMethods
     /// </summary>
     /// <param name="number">The number to speak out</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <remarks>Spoken in French ("virgule" for the decimal point) when <c>VoiceProperties.SystemRecordingSubfolder</c> starts with <c>fr-</c>; otherwise English.</remarks>
     Task PlayNumberAsync(double number, CancellationToken cancellationToken);
 
     /// <summary>
     /// Speaks out a long. For example 25 would be spoken as 'twenty-five'
     /// </summary>
     /// <param name="number">The long to speak out.</param>
+    /// <remarks>Spoken with French number rules when <c>VoiceProperties.SystemRecordingSubfolder</c> starts with <c>fr-</c>; otherwise English.</remarks>
     void PlayInteger(long number);
 
     /// <summary>
@@ -118,12 +135,14 @@ public interface IPlayMethods
     /// </summary>
     /// <param name="number">The long to speak out.</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <remarks>Spoken with French number rules when <c>VoiceProperties.SystemRecordingSubfolder</c> starts with <c>fr-</c>; otherwise English.</remarks>
     Task PlayIntegerAsync(long number, CancellationToken cancellationToken);
 
     /// <summary>
     /// Plays a number from 1 to 31. Example 31 would speak 'thirty-first'.
     /// </summary>
     /// <param name="number">A number between 1 and 31</param>
+    /// <remarks>Plays the <c>ord{number}.wav</c> recording from the language subfolder, so it is spoken in that language.</remarks>
     void PlayOrdinal(int number);
 
     /// <summary>
@@ -131,6 +150,7 @@ public interface IPlayMethods
     /// </summary>
     /// <param name="number">A number between 1 and 31</param>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <remarks>Plays the <c>ord{number}.wav</c> recording from the language subfolder, so it is spoken in that language.</remarks>
     Task PlayOrdinalAsync(int number, CancellationToken cancellationToken);
 
     /// <summary>
