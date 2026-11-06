@@ -19,4 +19,13 @@ public interface ITextToSpeechCacheFactory
     /// <param name="wavFileName">The name of the wav file to generate later on. If null,
     /// no wav file will be generated</param>
     ITextToSpeechCache Create(string text, string wavFileName = null);
+
+    /// <summary>
+    /// Creates an instance of ITextToSpeechCache that speaks with a specific voice.
+    /// </summary>
+    /// <param name="text">The text to be converted to a wav stream later on</param>
+    /// <param name="wavFileName">The name of the wav file to generate later on. If null,
+    /// no wav file will be generated</param>
+    /// <param name="voiceName">The voice to use, for example "fr-CA-SylvieNeural". Null or empty uses the configured voice.</param>
+    ITextToSpeechCache Create(string text, string wavFileName, string voiceName) => Create(text, wavFileName);
 }

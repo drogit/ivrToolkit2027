@@ -41,10 +41,17 @@ public class GoogleTTS : ITextToSpeech, IDisposable
     public async Task<WavStream> TextToSpeechAsync(string text, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({text})", nameof(TextToSpeechAsync), text);
-        return text.StartsWith("<speak") ? await SpeakSsmlAsync(text) : await SpeakTextAsync(text);
+        return text.StartsWith("<speak") ? await SpeakSsmlAsync(text, null) : await SpeakTextAsync(text, null);
     }
 
-    private async Task<WavStream> SpeakSsmlAsync(string text)
+    /// <inheritdoc />
+    public async Task<WavStream> TextToSpeechAsync(string text, string voiceName, CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("{method}({text}, {voiceName})", nameof(TextToSpeechAsync), text, voiceName);
+        return text.StartsWith("<speak") ? await SpeakSsmlAsync(text, voiceName) : await SpeakTextAsync(text, voiceName);
+    }
+
+    private async Task<WavStream> SpeakSsmlAsync(string text, string voiceName)
     {
         // Prepare text input
         var input = new SynthesisInput { Ssml  = text };
@@ -59,6 +66,13 @@ public class GoogleTTS : ITextToSpeech, IDisposable
         {
             voice.Name = _voiceProperties.TtsGoogleName;
         }
+        if (!string.IsNullOrWhiteSpace(voiceName))
+        {
+            // Google voice names start with the language code, for example "fr-CA-Wavenet-A"
+            var parts = voiceName.Split('-');
+            if (parts.Length >= 2) voice.LanguageCode = $"{parts[0]}-{parts[1]}";
+            voice.Name = voiceName;
+        }
 
         // Configure audio output format (16-bit PCM WAV, 8000 Hz or 16000 Hz)
         var audioConfig = new AudioConfig
@@ -72,13 +86,13 @@ public class GoogleTTS : ITextToSpeech, IDisposable
         return new WavStream(response.AudioContent.ToByteArray());
     }
 
-    private async Task<WavStream> SpeakTextAsync(string text)
+    private async Task<WavStream> SpeakTextAsync(string text, string voiceName)
     {
         var ssml = $@"<speak>
                         {text}
                     </speak>";
 
-        return await SpeakSsmlAsync(ssml);
+        return await SpeakSsmlAsync(ssml, voiceName);
     }
 
 

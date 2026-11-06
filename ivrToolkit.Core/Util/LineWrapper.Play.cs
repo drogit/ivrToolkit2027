@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -69,13 +69,13 @@ internal partial class LineWrapper
     public void PlayDate(DateTime dateTime, string mask)
     {
         _logger.LogDebug("{method}({dateTime}, {mask})", nameof(PlayDate), dateTime, mask);
-        _speaker.SpeakDateAsync(dateTime, mask, SyncContext()).GetAwaiter().GetResult();
+        Speaker.SpeakDateAsync(dateTime, mask, SyncContext()).GetAwaiter().GetResult();
     }
 
     public async Task PlayDateAsync(DateTime dateTime, string mask, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({dateTime}, {mask})", nameof(PlayDateAsync), dateTime, mask);
-        await _speaker.SpeakDateAsync(dateTime, mask, AsyncContext(cancellationToken));
+        await Speaker.SpeakDateAsync(dateTime, mask, AsyncContext(cancellationToken));
     }
 
     private SpeechContext SyncContext()
@@ -95,13 +95,13 @@ internal partial class LineWrapper
     public void PlayMoney(double number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayMoney), number);
-        _speaker.SpeakMoneyAsync(number, SyncContext()).GetAwaiter().GetResult();
+        Speaker.SpeakMoneyAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
 
     public async Task PlayMoneyAsync(double number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayMoneyAsync), number);
-        await _speaker.SpeakMoneyAsync(number, AsyncContext(cancellationToken));
+        await Speaker.SpeakMoneyAsync(number, AsyncContext(cancellationToken));
     }
 
     /// <summary>
@@ -159,13 +159,13 @@ internal partial class LineWrapper
     public void PlayNumber(double number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayNumber), number);
-        _speaker.SpeakNumberAsync(number, SyncContext()).GetAwaiter().GetResult();
+        Speaker.SpeakNumberAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
 
     public async Task PlayNumberAsync(double number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayNumberAsync), number);
-        await _speaker.SpeakNumberAsync(number, AsyncContext(cancellationToken));
+        await Speaker.SpeakNumberAsync(number, AsyncContext(cancellationToken));
     }
 
     /// <summary>
@@ -175,13 +175,13 @@ internal partial class LineWrapper
     public void PlayInteger(long number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayInteger), number);
-        _speaker.SpeakIntegerAsync(number, SyncContext()).GetAwaiter().GetResult();
+        Speaker.SpeakIntegerAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
 
     public async Task PlayIntegerAsync(long number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayIntegerAsync), number);
-        await _speaker.SpeakIntegerAsync(number, AsyncContext(cancellationToken));
+        await Speaker.SpeakIntegerAsync(number, AsyncContext(cancellationToken));
     }
         
     /// <summary>
@@ -191,13 +191,13 @@ internal partial class LineWrapper
     public void PlayOrdinal(int number)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayOrdinal), number);
-        _speaker.SpeakOrdinalAsync(number, SyncContext()).GetAwaiter().GetResult();
+        Speaker.SpeakOrdinalAsync(number, SyncContext()).GetAwaiter().GetResult();
     }
 
     public async Task PlayOrdinalAsync(int number, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({number})", nameof(PlayOrdinalAsync), number);
-        await _speaker.SpeakOrdinalAsync(number, AsyncContext(cancellationToken));
+        await Speaker.SpeakOrdinalAsync(number, AsyncContext(cancellationToken));
     }
 
     /// <summary>
@@ -307,13 +307,13 @@ internal partial class LineWrapper
     private void PlayF(string filename)
     {
         _logger.LogDebug("{method}({fileName})", nameof(PlayF), filename);
-        PlayFile(Path.Combine(_root, $"{filename}.wav"));
+        PlayFile(Path.Combine(SystemRecordingsRoot, $"{filename}.wav"));
     }
         
     private async Task PlayFAsync(string filename, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({fileName})", nameof(PlayFAsync), filename);
-        await PlayFileAsync(Path.Combine(_root, $"{filename}.wav"), cancellationToken);
+        await PlayFileAsync(Path.Combine(SystemRecordingsRoot, $"{filename}.wav"), cancellationToken);
     }
     
     public void PlayFileOrPhrase(string fileNameOrPhrase)
@@ -357,7 +357,10 @@ internal partial class LineWrapper
         _logger.LogDebug("{method}({textToSpeech})", nameof(PlayTextToSpeechAsync), textToSpeech);
         CheckDispose();
         
-        var textToSpeechBuilder = _textToSpeechCacheFactory.Create(textToSpeech);
+        var voice = EffectiveTextToSpeechVoice;
+        var textToSpeechBuilder = voice == null
+            ? _textToSpeechCacheFactory.Create(textToSpeech)
+            : _textToSpeechCacheFactory.Create(textToSpeech, null, voice);
 
         var audioStream = await textToSpeechBuilder.GetOrGenerateCacheAsync(cancellationToken);
         await _lineImplementation.PlayWavStreamAsync(audioStream, cancellationToken);

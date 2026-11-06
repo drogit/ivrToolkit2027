@@ -40,7 +40,14 @@ public class AzureTTS : ITextToSpeech, IDisposable
     public async Task<WavStream> TextToSpeechAsync(string text, CancellationToken cancellationToken)
     {
         _logger.LogDebug("{method}({text})", nameof(TextToSpeechAsync), text);
-        return text.StartsWith("<speak") ? await SpeakSsmlAsync(text) : await SpeakTextAsync(text);
+        return text.StartsWith("<speak") ? await SpeakSsmlAsync(text) : await SpeakTextAsync(text, _voiceName);
+    }
+
+    public async Task<WavStream> TextToSpeechAsync(string text, string voiceName, CancellationToken cancellationToken)
+    {
+        _logger.LogDebug("{method}({text}, {voiceName})", nameof(TextToSpeechAsync), text, voiceName);
+        var voice = string.IsNullOrWhiteSpace(voiceName) ? _voiceName : voiceName;
+        return text.StartsWith("<speak") ? await SpeakSsmlAsync(text) : await SpeakTextAsync(text, voice);
     }
 
     private async Task<WavStream> SpeakSsmlAsync(string text)
@@ -53,10 +60,10 @@ public class AzureTTS : ITextToSpeech, IDisposable
         return new WavStream(result.AudioData);
     }
 
-    private async Task<WavStream> SpeakTextAsync(string text)
+    private async Task<WavStream> SpeakTextAsync(string text, string voiceName)
     {
         var ssml = $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>
-                            <voice name='{_voiceName}'>
+                            <voice name='{voiceName}'>
                                 {text}
                             </voice>
                         </speak>";

@@ -34,8 +34,10 @@ internal partial class LineWrapper : IIvrLine, IIvrLineManagement
     private int _volume;
     private bool _disposed;
     private readonly VoiceProperties _voiceProperties;
-    private readonly string _root;
-    private readonly ILanguageSpeaker _speaker;
+    private string _systemRecordingSubfolderOverride;
+    private string _textToSpeechVoiceOverride;
+    private string _speakerSubfolder;
+    private ILanguageSpeaker _speaker;
 
 
     internal LineWrapper(ILoggerFactory loggerFactory, VoiceProperties voiceProperties, int lineNumber, 
@@ -50,8 +52,6 @@ internal partial class LineWrapper : IIvrLine, IIvrLineManagement
         loggerFactory.ThrowIfNull(nameof(loggerFactory));
         
         _voiceProperties = voiceProperties.ThrowIfNull(nameof(voiceProperties));
-        _root = Path.Combine("System Recordings", _voiceProperties.SystemRecordingSubfolder);
-        _speaker = LanguageSpeakerFactory.Create(_voiceProperties.SystemRecordingSubfolder);
 
         _logger = loggerFactory.CreateLogger<LineWrapper>();
         _logger.LogDebug("ctr(ILoggerFactory, VoiceProperties, {lineNumber})", lineNumber);
@@ -104,6 +104,56 @@ internal partial class LineWrapper : IIvrLine, IIvrLineManagement
         _lineImplementation.StartIncomingListener(callback, this, cancellationToken);
     }
 
+    public string SystemRecordingSubfolder
+    {
+        get => _systemRecordingSubfolderOverride;
+        set => _systemRecordingSubfolderOverride = value;
+    }
+
+    public string TextToSpeechVoice
+    {
+        get => _textToSpeechVoiceOverride;
+        set => _textToSpeechVoiceOverride = value;
+    }
+
+    internal string EffectiveTextToSpeechVoice
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_textToSpeechVoiceOverride)) return _textToSpeechVoiceOverride;
+
+            // subfolders are named after the voice that generated them, for example "fr-CA-SylvieNeural"
+            if (!string.IsNullOrWhiteSpace(_systemRecordingSubfolderOverride) &&
+                _systemRecordingSubfolderOverride.Split('-').Length >= 3)
+            {
+                return _systemRecordingSubfolderOverride;
+            }
+
+            return null;
+        }
+    }
+
+    private string EffectiveSystemRecordingSubfolder =>
+        string.IsNullOrWhiteSpace(_systemRecordingSubfolderOverride)
+            ? _voiceProperties.SystemRecordingSubfolder
+            : _systemRecordingSubfolderOverride;
+
+    internal string SystemRecordingsRoot => Path.Combine("System Recordings", EffectiveSystemRecordingSubfolder);
+
+    private ILanguageSpeaker Speaker
+    {
+        get
+        {
+            var subfolder = EffectiveSystemRecordingSubfolder;
+            if (_speaker == null || !string.Equals(_speakerSubfolder, subfolder, StringComparison.Ordinal))
+            {
+                _speaker = LanguageSpeakerFactory.Create(subfolder);
+                _speakerSubfolder = subfolder;
+            }
+            return _speaker;
+        }
+    }
+
     void IIvrBaseLine.StartIncomingListener(Func<IIvrLine, CancellationToken, Task> callback, IIvrLine line, CancellationToken cancellationToken)
     {
         _lineImplementation.StartIncomingListener(callback, line, cancellationToken);
@@ -113,6 +163,8 @@ internal partial class LineWrapper : IIvrLine, IIvrLineManagement
     {
         _logger.LogDebug("{method}()",nameof(Hangup));
         _status = LineStatusTypes.OnHook;
+        _systemRecordingSubfolderOverride = null;
+        _textToSpeechVoiceOverride = null;
         CheckDispose();
 
         _lineImplementation.Hangup();
@@ -230,6 +282,8 @@ internal partial class LineWrapper : IIvrLine, IIvrLineManagement
         {
             _disposed = true;
             _disposeTriggerActivated = false;
+            _systemRecordingSubfolderOverride = null;
+            _textToSpeechVoiceOverride = null;
         }
     }
 

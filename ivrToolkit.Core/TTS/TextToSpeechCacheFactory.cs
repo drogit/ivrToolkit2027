@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System.IO;
 using ivrToolkit.Core.Extensions;
 using ivrToolkit.Core.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -24,5 +25,21 @@ public class TextToSpeechCacheFactory : ITextToSpeechCacheFactory
     {
         _logger.LogDebug("{method}({text}, {wavFileName})", nameof(Create), text, wavFileName);
         return new TextToSpeechCache(_loggerFactory, _textToSpeech, text, wavFileName, _fileHandler);
+    }
+
+    public ITextToSpeechCache Create(string text, string? wavFileName, string? voiceName)
+    {
+        _logger.LogDebug("{method}({text}, {wavFileName}, {voiceName})", nameof(Create), text, wavFileName, voiceName);
+        if (string.IsNullOrWhiteSpace(voiceName)) return Create(text, wavFileName);
+
+        // keep cached wav files for different voices apart
+        if (wavFileName is not null)
+        {
+            var directory = Path.GetDirectoryName(wavFileName) ?? string.Empty;
+            var name = $"{Path.GetFileNameWithoutExtension(wavFileName)}.{voiceName}{Path.GetExtension(wavFileName)}";
+            wavFileName = Path.Combine(directory, name);
+        }
+
+        return new TextToSpeechCache(_loggerFactory, _textToSpeech, text, wavFileName, _fileHandler, voiceName);
     }
 }

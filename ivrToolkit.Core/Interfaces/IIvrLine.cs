@@ -40,4 +40,15 @@ public interface IIvrLine : IIvrBaseLine, IPromptMethods, IPlayMethods
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     public void StartIncomingListener(Func<IIvrLine, CancellationToken, Task> callback, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Per-line override of VoiceProperties.SystemRecordingSubfolder. Null or empty means use the configured value. Affects only this line.
+    /// </summary>
+    string SystemRecordingSubfolder { get; set; }
+
+    /// <summary>
+    /// Per-line override of the text to speech voice, for example "fr-CA-SylvieNeural". Null or empty means use the
+    /// configured voice, unless <see cref="SystemRecordingSubfolder"/> is set to a voice name, in which case that voice is used.
+    /// Affects only this line.
+    /// </summary>
+    string TextToSpeechVoice { get; set; }
 }

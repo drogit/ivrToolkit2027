@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +16,7 @@ public class TextToSpeechCache : ITextToSpeechCache
     private readonly string _text;
     private readonly string? _wavFileName;
     private readonly IFileHandler _fileHandler;
+    private readonly string? _voiceName;
 
     private readonly ILogger<ITextToSpeechCache> _logger;
 
@@ -24,17 +25,31 @@ public class TextToSpeechCache : ITextToSpeechCache
     public TextToSpeechCache(ILoggerFactory loggerFactory, ITextToSpeech? textToSpeech, 
         string text, 
         string? wavFileName,
-        IFileHandler fileHandler)
+        IFileHandler fileHandler) : this(loggerFactory, textToSpeech, text, wavFileName, fileHandler, null)
+    {
+    }
+
+    public TextToSpeechCache(ILoggerFactory loggerFactory, ITextToSpeech? textToSpeech, 
+        string text, 
+        string? wavFileName,
+        IFileHandler fileHandler,
+        string? voiceName)
     {
         loggerFactory.ThrowIfNull(nameof(loggerFactory));
         _text = text.ThrowIfNull(nameof(text));
         _logger = loggerFactory.CreateLogger<TextToSpeechCache>();
         _fileHandler = fileHandler.ThrowIfNull(nameof(fileHandler));
-        
-        // these two are allowed to be null
+
+        // these are allowed to be null
         _textToSpeech = textToSpeech;
         _wavFileName = wavFileName;
+        _voiceName = voiceName;
     }
+
+    private Task<WavStream> SynthesizeAsync(CancellationToken cancellationToken) =>
+        string.IsNullOrWhiteSpace(_voiceName)
+            ? _textToSpeech!.TextToSpeechAsync(_text, cancellationToken)
+            : _textToSpeech!.TextToSpeechAsync(_text, _voiceName, cancellationToken);
     
     public async Task<WavStream> GetOrGenerateCacheAsync(CancellationToken cancellationToken)
     {
@@ -51,7 +66,7 @@ public class TextToSpeechCache : ITextToSpeechCache
         {
             throw new VoiceException("Missing text to speech engine. Cannot convert text to Speech.");
         }
-        var audioStream = await _textToSpeech.TextToSpeechAsync(_text, cancellationToken);
+        var audioStream = await SynthesizeAsync(cancellationToken);
 
         if (_wavFileName is null) return audioStream;
         
@@ -87,7 +102,7 @@ public class TextToSpeechCache : ITextToSpeechCache
         {
             throw new VoiceException("Missing text to speech engine. Cannot convert text to Speech.");
         }
-        var audioStream = await _textToSpeech.TextToSpeechAsync(_text, cancellationToken);
+        var audioStream = await SynthesizeAsync(cancellationToken);
 
         // write out the wav file
         await _fileHandler.WriteAllBytesAsync(_wavFileName, audioStream.ToArray(), cancellationToken);
